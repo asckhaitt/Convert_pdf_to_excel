@@ -1,0 +1,34 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.scratch/
+
+# Local environments & heavy runtimes (paddle, conda, tessenv)
+.runtime/
+.venv/
+venv/
+env/
+ENV/
+
+# PyInstaller & build output
+build/
+dist/
+FileBuild/
+*.spec.bak
+/ChuyenSoNhatKyChung.exe
+
+# Session runtime data & database / logs
+Du_lieu_phien/
+*.sqlite
+*.log
+
+# Environment & credentials
+.env
+.env.*
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store

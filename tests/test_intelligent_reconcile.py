@@ -126,3 +126,68 @@ def test_group_voucher_transactions_out_of_order_pages():
     assert len(groups) == 1
     assert groups[0]["voucher"] == "PC01"
 
+
+def test_truncated_voucher_suffix_and_reciprocal_pairing():
+    """Kiểm tra trường hợp số chứng từ bị rớt chữ số cuối (NVK16.02 vs NVK16.021).
+    Phải ghép đúng cặp đối ứng tài khoản 515-911 và 911-6421, không làm đè số tiền khác nhau."""
+    fr = FileResult(path="dummy.pdf", page_count=1)
+    p = PageResult(page_index=0)
+
+    # Cặp 1: Doanh thu tài chính (13.409)
+    r1 = SourceRow(page_index=0, row_index=0, kind=RowKind.ENTRY)
+    r1.cells[Col.SO_CT] = CellValue(col=Col.SO_CT, raw="NVK16.02", value="NVK16.02")
+    r1.cells[Col.DIEN_GIAI] = CellValue(col=Col.DIEN_GIAI, raw="Kết chuyển doanh thu tài chính", value="Kết chuyển doanh thu tài chính")
+    r1.cells[Col.TAI_KHOAN] = CellValue(col=Col.TAI_KHOAN, raw="515", value="515")
+    r1.cells[Col.TK_DOI_UNG] = CellValue(col=Col.TK_DOI_UNG, raw="911", value="911")
+    r1.cells[Col.PS_NO] = CellValue(col=Col.PS_NO, raw="13.409", value=Decimal("13409"))
+    r1.cells[Col.PS_CO] = CellValue(col=Col.PS_CO, raw="", value=None)
+
+    r2 = SourceRow(page_index=0, row_index=1, kind=RowKind.ENTRY)
+    r2.cells[Col.SO_CT] = CellValue(col=Col.SO_CT, raw="NVK16.021", value="NVK16.021")
+    r2.cells[Col.DIEN_GIAI] = CellValue(col=Col.DIEN_GIAI, raw="Kết chuyển doanh thu tài chính", value="Kết chuyển doanh thu tài chính")
+    r2.cells[Col.TAI_KHOAN] = CellValue(col=Col.TAI_KHOAN, raw="911", value="911")
+    r2.cells[Col.TK_DOI_UNG] = CellValue(col=Col.TK_DOI_UNG, raw="515", value="515")
+    r2.cells[Col.PS_NO] = CellValue(col=Col.PS_NO, raw="", value=None)
+    r2.cells[Col.PS_CO] = CellValue(col=Col.PS_CO, raw="13.409", value=Decimal("13409"))
+
+    # Cặp 2: Chi phí quản lý (19.443.077)
+    r3 = SourceRow(page_index=0, row_index=2, kind=RowKind.ENTRY)
+    r3.cells[Col.SO_CT] = CellValue(col=Col.SO_CT, raw="NVK16.021", value="NVK16.021")
+    r3.cells[Col.DIEN_GIAI] = CellValue(col=Col.DIEN_GIAI, raw="Kết chuyển chi phí quản lý", value="Kết chuyển chi phí quản lý")
+    r3.cells[Col.TAI_KHOAN] = CellValue(col=Col.TAI_KHOAN, raw="911", value="911")
+    r3.cells[Col.TK_DOI_UNG] = CellValue(col=Col.TK_DOI_UNG, raw="6421", value="6421")
+    r3.cells[Col.PS_NO] = CellValue(col=Col.PS_NO, raw="19.443.077", value=Decimal("19443077"))
+    r3.cells[Col.PS_CO] = CellValue(col=Col.PS_CO, raw="", value=None)
+
+    r4 = SourceRow(page_index=0, row_index=3, kind=RowKind.ENTRY)
+    r4.cells[Col.SO_CT] = CellValue(col=Col.SO_CT, raw="NVK16.02", value="NVK16.02")
+    r4.cells[Col.DIEN_GIAI] = CellValue(col=Col.DIEN_GIAI, raw="Kết chuyển chi phí quản lý", value="Kết chuyển chi phí quản lý")
+    r4.cells[Col.TAI_KHOAN] = CellValue(col=Col.TAI_KHOAN, raw="6421", value="6421")
+    r4.cells[Col.TK_DOI_UNG] = CellValue(col=Col.TK_DOI_UNG, raw="911", value="911")
+    r4.cells[Col.PS_NO] = CellValue(col=Col.PS_NO, raw="", value=None)
+    r4.cells[Col.PS_CO] = CellValue(col=Col.PS_CO, raw="19.443.077", value=Decimal("19443077"))
+
+    p.rows = [r1, r2, r3, r4]
+    fr.pages = [p]
+
+    assert vouchers_match("NVK16.02", "NVK16.021") is True
+
+    auto_reconcile_and_repair(fr)
+
+    # Đảm bảo r2 không bị ghi đè thành 19.443.077
+    assert r1.amount_no == Decimal("13409")
+    assert r2.amount_co == Decimal("13409")
+    assert r2.cell(Col.TAI_KHOAN).value == "911"
+    assert r2.cell(Col.TK_DOI_UNG).value == "515"
+
+    assert r3.amount_no == Decimal("19443077")
+    assert r4.amount_co == Decimal("19443077")
+    assert r4.cell(Col.TAI_KHOAN).value == "6421"
+    assert r4.cell(Col.TK_DOI_UNG).value == "911"
+
+    # Tất cả các dòng đều được chuẩn hóa số chứng từ đầy đủ
+    assert r1.cell(Col.SO_CT).value == "NVK16.021"
+    assert r2.cell(Col.SO_CT).value == "NVK16.021"
+    assert r3.cell(Col.SO_CT).value == "NVK16.021"
+    assert r4.cell(Col.SO_CT).value == "NVK16.021"
+

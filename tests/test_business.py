@@ -71,6 +71,12 @@ def test_amount_vn_formats():
     assert parse_amount("313,377,712.095", Col.PS_NO, 0, 0)[0] == Decimal(313377712095)
     assert parse_amount("10,898,994,361,269", Col.PS_NO, 0, 0)[0] == Decimal(10898994361269)
     assert parse_amount("10.898,994,361,269", Col.PS_NO, 0, 0)[0] == Decimal(10898994361269)
+    # Khôi phục số tiền bị xén số 0 cuối ở mép bảng hoặc tàn dư mép ô
+    assert parse_amount("3.000.00(", Col.PS_NO, 0, 0)[0] == Decimal(3000000)
+    assert parse_amount("100,000,000,00", Col.PS_NO, 0, 0)[0] == Decimal(100000000000)
+    assert parse_amount("168,500,000,00(", Col.PS_NO, 0, 0)[0] == Decimal(168500000000)
+    assert parse_amount("248.750.000.00", Col.PS_NO, 0, 0)[0] == Decimal(248750000000)
+    assert parse_amount("1,530,00", Col.PS_NO, 0, 0)[0] == Decimal(1530000)
 
 
 def test_amount_ambiguous_warns():

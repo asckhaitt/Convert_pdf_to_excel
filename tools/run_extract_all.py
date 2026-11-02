@@ -19,6 +19,8 @@ from app.core.pipeline import Pipeline
 from app.core.reconcile import can_export_final
 
 PDF_DIR = ROOT / "PDF file"
+if not PDF_DIR.exists():
+    PDF_DIR = ROOT / "FileBuild" / "PDF file"
 SESSION_DIR = str(ROOT / "Du_lieu_phien")
 OUT_DIR = str(ROOT / "Excel file")
 

@@ -18,6 +18,8 @@ dist/
 FileBuild/
 *.spec.bak
 /ChuyenSoNhatKyChung.exe
+*.zip
+Excel file/
 
 # Session runtime data & database / logs
 Du_lieu_phien/

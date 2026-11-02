@@ -74,10 +74,10 @@ def extract_page(pdf_path: str, page_index: int, engine: OcrEngine,
         for c in range(grid.n_cols):
             rect = grid.cell_rect(r, c)
             col_type = COLUMN_ORDER[c]
-            # Cột số tiền căn phải: không lấn sang biên trái kẻ bảng tránh dính nét viền thành số 1
+            # Cột số tiền căn phải: nới nhẹ biên phải +3px để không xén nét chữ số cuối
             if col_type in (Col.PS_NO, Col.PS_CO):
                 x0 = max(0, int(rect.x0) + 1)
-                x1 = min(img.shape[1], int(rect.x1))
+                x1 = min(img.shape[1], int(rect.x1) + 3)
             elif col_type in (Col.TAI_KHOAN, Col.TK_DOI_UNG):
                 # Cột tài khoản: giữ đúng biên ô, tránh dính viền thành số 1 (1335 vs 335, 1911 vs 911)
                 x0 = max(0, int(rect.x0))
@@ -99,7 +99,8 @@ def extract_page(pdf_path: str, page_index: int, engine: OcrEngine,
                 cell_clean = clean_borders(cell[2:h0 - 2, x_inset:w0 - x_inset])
                 lines = [cell_clean]
             else:
-                lines = split_lines(cell)
+                inset_val = 2 if col_type in (Col.PS_NO, Col.PS_CO, Col.TAI_KHOAN, Col.TK_DOI_UNG) else 4
+                lines = split_lines(cell, inset=inset_val)
             cell_lines[(r, c)] = lines
             by_mode.setdefault(mode_for[COLUMN_ORDER[c]], []).append(((r, c), lines))
     texts = {}

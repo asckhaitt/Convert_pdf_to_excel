@@ -140,6 +140,17 @@ def infer_missing_carry_totals(fr: FileResult) -> None:
                 for r in p.rows:
                     if r.kind == RowKind.CARRY_OUT:
                         r.cell(Col.PS_CO).value = nxt.carry_in_co
+        elif not p.has_grand_total_row and nxt.has_carry_in_row:
+            # Trang in kín dòng không in chữ 'Cộng chuyển sang sau' nhưng khớp số liệu với trang kế
+            ps_no, ps_co = p.sum_no(), p.sum_co()
+            cin_no = p.carry_in_no if p.carry_in_no is not None or i == 1 else ZERO
+            cin_co = p.carry_in_co if p.carry_in_co is not None or i == 1 else ZERO
+            if cin_no is not None and nxt.carry_in_no is not None and (cin_no + ps_no == nxt.carry_in_no):
+                p.carry_out_no = nxt.carry_in_no
+                p.has_carry_out_row = True
+            if cin_co is not None and nxt.carry_in_co is not None and (cin_co + ps_co == nxt.carry_in_co):
+                p.carry_out_co = nxt.carry_in_co
+                p.has_carry_out_row = True
 
     # 4. Kiểm tra phương trình nội bộ trang: Vào + Phát sinh = Ra
     for p in pages:

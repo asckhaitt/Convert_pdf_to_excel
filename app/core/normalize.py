@@ -59,10 +59,16 @@ def parse_amount(raw: str, col: Col, page: int, row: int):
     if s.startswith("(") and s.endswith(")"):
         neg = True
         s = s[1:-1]
-    # Dấu chấm / phẩy / gạch nối / tàn dư mép ô do đường kẻ viền bảng
-    s = s.strip(".,:;~_=-").rstrip("()")
+    # Dấu chấm / phẩy / gạch nối / tàn dư mép ô do đường kẻ viền bảng hoặc dấu ngoặc thừa
+    s = s.strip(".,:;~_=- \t()")
+    # Khắc phục chữ cái O/o/D/C bị OCR nhầm từ số 0 ở cuối
+    if s and s[-1] in "CcOoD":
+        s = s[:-1] + "0"
+    s = s.strip(".,:;~_=- \t()")
     # Khắc phục vết mực / nhiễu OCR chèn thêm số 0 ngay sau dấu phân cách nghìn (ví dụ 7.0696.300 -> 7.696.300)
     s = re.sub(r"([.,])0(\d{3})(?=[.,]|$)", r"\1\2", s)
+    # Khắc phục dấu phân cách trùng lặp do nhiễu mép chữ (ví dụ 44,.235 -> 44.235)
+    s = re.sub(r"[,.]{2,}", ".", s)
     if not s or not AMOUNT_OK_RE.match(s) or not any(ch.isdigit() for ch in s):
         warns.append(WarningItem(
             code="SO_TIEN_SAI_DINH_DANG",
@@ -71,10 +77,13 @@ def parse_amount(raw: str, col: Col, page: int, row: int):
         return None, warns
 
     int_part, dec_part = "", ""
-    groups = re.split(r"[,.]", s)
+    groups = [g for g in re.split(r"[,.]+", s) if g]
     if len(groups) > 1 and all(len(g) == 3 for g in groups[1:]) and len(groups[0]) in (1, 2, 3) and all(g.isdigit() for g in groups):
         # 100% số nguyên có dấu phân cách hàng nghìn (kể cả khi OCR nhầm lẫn giữa dấu chấm và phẩy)
         int_part = "".join(groups)
+    elif len(groups) >= 2 and all(g.isdigit() for g in groups) and all(len(g) == 3 for g in groups[1:-1]) and len(groups[0]) in (1, 2, 3) and len(groups[-1]) in (1, 2) and all(ch == "0" for ch in groups[-1]):
+        # Khôi phục chữ số 0 hàng nghìn ở mép phải bảng bị cắt (100,000,000,00 -> 100,000,000,000; 3.000.00 -> 3.000.000)
+        int_part = "".join(groups[:-1]) + groups[-1].ljust(3, "0")
     elif "," in s and "." in s:
         last_comma = s.rfind(",")
         last_dot = s.rfind(".")

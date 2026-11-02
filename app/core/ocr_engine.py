@@ -60,15 +60,21 @@ def clean_borders(cell: np.ndarray) -> np.ndarray:
     out = cell.copy()
     colcov = bw.sum(axis=0) / 255.0 / max(h, 1)
     rowcov = bw.sum(axis=1) / 255.0 / max(w, 1)
-    for x in np.nonzero(colcov > 0.75)[0]:
-        out[:, x] = 255
-    for y in np.nonzero(rowcov > 0.75)[0]:
-        out[y, :] = 255
+    edge_x = min(8, w // 4)
+    edge_y = min(8, h // 4)
+    for x in range(w):
+        thr = 0.60 if (x < edge_x or x >= w - edge_x) else 0.88
+        if colcov[x] > thr:
+            out[:, x] = 255
+    for y in range(h):
+        thr = 0.60 if (y < edge_y or y >= h - edge_y) else 0.88
+        if rowcov[y] > thr:
+            out[y, :] = 255
     return out
 
 
 def split_lines(cell: np.ndarray, min_gap: int = 0, min_h: int = 10,
-                pad_x: int = 7, pad_y: int = 2, inset: int = 6):
+                pad_x: int = 3, pad_y: int = 2, inset: int = 2):
     """Tách các dòng chữ trong một ô bằng khoảng trống theo chiều dọc."""
     h0, w0 = cell.shape[:2]
     if h0 <= 2 * inset + 4 or w0 <= 2 * inset + 4:
@@ -105,6 +111,10 @@ def split_lines(cell: np.ndarray, min_gap: int = 0, min_h: int = 10,
         xs = np.nonzero(cols > 0)[0]
         if len(xs) == 0:
             continue
+        while len(xs) > 1 and xs[1] - xs[0] > 15 and (xs[0] <= 4 or cols[xs[0]] <= 2):
+            xs = xs[1:]
+        while len(xs) > 1 and xs[-1] - xs[-2] > 15 and (xs[-1] >= w - 5 or cols[xs[-1]] <= 2):
+            xs = xs[:-1]
         x0 = max(0, int(xs[0]) - pad_x)
         x1 = min(w, int(xs[-1]) + 1 + pad_x)
         out.append(cell[a:b, x0:x1])
@@ -122,7 +132,7 @@ def has_ink(cell: np.ndarray, thresh: float = 0.004, inset: int = 6) -> bool:
 class OcrEngine:
     """Nhận dạng từng dòng chữ bằng Tesseract vie, một tiến trình cho cả lô."""
 
-    def __init__(self, lang: str = "vie", psm: int = 7, upscale: int = 2):
+    def __init__(self, lang: str = "vie", psm: int = 7, upscale: int = 1):
         self.exe, self.data = tesseract_paths()
         if not self.exe.exists():
             raise FileNotFoundError(f"Không tìm thấy Tesseract: {self.exe}")
@@ -151,6 +161,10 @@ class OcrEngine:
                 if upscale > 1:
                     im = cv2.resize(im, None, fx=upscale, fy=upscale,
                                     interpolation=cv2.INTER_CUBIC)
+                border_val = [255, 255, 255] if im.ndim == 3 else 255
+                pad_y = min(6, max(3, im.shape[0] // 4))
+                pad_x = min(8, max(4, im.shape[1] // 4))
+                im = cv2.copyMakeBorder(im, pad_y, pad_y, pad_x, pad_x, cv2.BORDER_CONSTANT, value=border_val)
                 p = td / f"l{i:04d}.png"
                 cv2.imwrite(str(p), im)
                 paths.append(p)

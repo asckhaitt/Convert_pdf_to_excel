@@ -100,7 +100,7 @@ def _page_to_json(p: PageResult) -> str:
         "grand_total_no": p.grand_total_no, "grand_total_co": p.grand_total_co,
         "has_carry_in_row": p.has_carry_in_row, "has_carry_out_row": p.has_carry_out_row,
         "has_grand_total_row": p.has_grand_total_row, "confirmed": p.confirmed,
-        "info_page": p.info_page,
+        "info_page": p.info_page, "grid_xs": getattr(p, "grid_xs", []),
         "image_path": p.image_path, "warnings": p.warnings, "rows": rows,
     }, default=_enc, ensure_ascii=False)
 
@@ -113,6 +113,7 @@ def _page_from_json(s: str) -> PageResult:
               "has_carry_out_row", "has_grand_total_row", "confirmed", "image_path"):
         setattr(p, k, d[k])
     p.info_page = bool(d.get("info_page", False))
+    p.grid_xs = d.get("grid_xs", [])
     p.warnings = d["warnings"]
     for rd in d["rows"]:
         r = SourceRow(page_index=rd["page_index"], row_index=rd["row_index"],
